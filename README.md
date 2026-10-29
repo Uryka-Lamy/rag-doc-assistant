@@ -167,9 +167,3 @@ rag-doc-assistant/
 
 Windows/macOS 直接 `pip install faiss-cpu` 即可；Linux 若失败可先 `pip install swig`。
 </details>
-
-## 九、课程与作者信息
-
-- 课程：《智能应用开发》（第七章 大作业）
-- 作者：徐仕杰（软件2405 · 20246028）
-- 技术要点覆盖：LangChain 框架、在线大模型 API、RAG 检索增强、向量数据库、会话记忆、Gradio 应用开发
