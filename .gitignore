@@ -1,0 +1,22 @@
+# 环境变量（含 API Key，严禁提交）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 向量库本地索引（可随时重建）
+vectorstore/
+
+# 用户上传文档
+uploads/*
+!uploads/.gitkeep
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
+*.log

@@ -1,0 +1,9 @@
+langchain>=0.3.0,<0.4
+langchain-community>=0.3.0,<0.4
+langchain-openai>=0.2.0,<0.4
+langchain-text-splitters>=0.3.0,<0.4
+faiss-cpu>=1.8.0
+gradio>=4.44.0
+python-dotenv>=1.0.0
+pypdf>=4.0.0
+docx2txt>=0.8
