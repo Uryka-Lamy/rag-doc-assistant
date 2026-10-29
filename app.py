@@ -29,6 +29,8 @@ def format_sources(context_docs) -> str:
 def respond(message: str, chat_history: list):
     """处理一轮问答；知识库未就绪时给出引导提示。"""
     chain = get_chain()
+    if chain is None and (settings.vector_dir / "index.faiss").exists():
+        chain = get_chain()  # 索引刚建完时可能加载竞争，重试一次
     if chain is None:
         chat_history.append({"role": "user", "content": message})
         chat_history.append(
@@ -103,7 +105,7 @@ def build_ui() -> gr.Blocks:
                 btn_reset = gr.Button("🗑️ 清空知识库", variant="stop")
                 status = gr.Textbox(label="状态", lines=6, interactive=False)
             with gr.Column(scale=2):
-                chatbot = gr.Chatbot(label="问答对话", height=460, type="messages")
+                chatbot = gr.Chatbot(label="问答对话", height=460)
                 msg = gr.Textbox(label="输入问题", placeholder="例如：这门课的考核方式是什么？", autofocus=True)
                 with gr.Row():
                     clear = gr.Button("🧹 清空对话", size="sm")

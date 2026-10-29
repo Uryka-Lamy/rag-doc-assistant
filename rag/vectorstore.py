@@ -1,5 +1,7 @@
 """文本切分 + FAISS 向量库管理（持久化到本地）。"""
 import shutil
+import tempfile
+from pathlib import Path
 from typing import Callable
 
 from langchain_community.vectorstores import FAISS
@@ -9,6 +11,50 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import settings
 from .loader import load_documents_from_dir
+
+
+def _stage_dir() -> Path:
+    """纯 ASCII 中转目录。
+
+    FAISS 的 C++ 层 fopen 在 Windows 上无法处理含中文的路径，
+    因此保存/加载索引都先经过 ASCII 中转目录，再由 Python 层搬运。
+    """
+    d = Path(tempfile.gettempdir()) / "rag_faiss_stage"
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def _clear_dir(d: Path) -> None:
+    for f in d.iterdir():
+        f.unlink() if f.is_file() else shutil.rmtree(f)
+
+
+def save_vectorstore(vs: FAISS) -> None:
+    """把向量库安全持久化到项目目录（绕过 FAISS 的中文路径问题）。"""
+    stage = _stage_dir()
+    _clear_dir(stage)
+    vs.save_local(str(stage))
+    if settings.vector_dir.exists():
+        shutil.rmtree(settings.vector_dir)
+    settings.vector_dir.parent.mkdir(exist_ok=True)
+    shutil.move(str(stage), str(settings.vector_dir))
+    stage.mkdir(exist_ok=True)  # move 会搬走中转目录，重建备用
+
+
+def load_vectorstore() -> FAISS | None:
+    """从项目目录加载向量库；不存在则返回 None。"""
+    if not (settings.vector_dir / "index.faiss").exists():
+        return None
+    stage = _stage_dir()
+    _clear_dir(stage)
+    for f in settings.vector_dir.iterdir():
+        if f.is_file():
+            shutil.copy2(f, stage / f.name)
+    return FAISS.load_local(
+        str(stage),
+        get_embeddings(),
+        allow_dangerous_deserialization=True,
+    )
 
 
 def get_embeddings() -> OpenAIEmbeddings:
@@ -41,8 +87,7 @@ def build_vectorstore(docs: list[Document]) -> tuple[FAISS, int]:
     if not chunks:
         raise ValueError("没有解析出任何文本内容，请检查文档是否为空。")
     vs = FAISS.from_documents(chunks, get_embeddings())
-    settings.vector_dir.mkdir(exist_ok=True)
-    vs.save_local(str(settings.vector_dir))
+    save_vectorstore(vs)
     return vs, len(chunks)
 
 
@@ -74,14 +119,7 @@ def ingest_sample(progress_cb: Callable[[str], None] | None = None) -> int:
 
 def load_or_none() -> FAISS | None:
     """加载本地已有的向量库；不存在则返回 None。"""
-    index_file = settings.vector_dir / "index.faiss"
-    if not index_file.exists():
-        return None
-    return FAISS.load_local(
-        str(settings.vector_dir),
-        get_embeddings(),
-        allow_dangerous_deserialization=True,
-    )
+    return load_vectorstore()
 
 
 def reset_vectorstore() -> None:
