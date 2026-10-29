@@ -52,22 +52,36 @@ def respond(message: str, chat_history: list):
     yield "", chat_history
 
 
+def _file_info(f):
+    """兼容不同 Gradio 版本的文件对象，返回 (临时路径, 原始文件名)。"""
+    if isinstance(f, dict):
+        return f.get("path") or f.get("name"), f.get("orig_name")
+    if isinstance(f, str):  # Gradio 6 的 NamedString：字符串值即临时文件路径
+        tmp = str(f)
+        return tmp, Path(tmp).name
+    tmp = getattr(f, "path", None) or getattr(f, "name", None)
+    return tmp, getattr(f, "orig_name", None) or Path(tmp).name
+
+
 def on_upload(files, progress=gr.Progress()):
     """保存上传文件并构建向量库。"""
-    if not files:
-        return "请先选择要上传的文档（支持 PDF / DOCX / MD / TXT）"
-    saved: list[str] = []
-    settings.upload_dir.mkdir(exist_ok=True)
-    for f in files:
-        dest = settings.upload_dir / Path(f.orig_name or Path(f.name).name).name
-        shutil.copy(f.name, dest)
-        saved.append(str(dest))
-    logs: list[str] = []
     try:
+        if not files:
+            return "请先选择要上传的文档（支持 PDF / DOCX / MD / TXT）"
+        saved: list[str] = []
+        settings.upload_dir.mkdir(exist_ok=True)
+        for f in files:
+            tmp, orig = _file_info(f)
+            dest = settings.upload_dir / Path(orig or Path(tmp).name).name
+            shutil.copy(tmp, dest)
+            saved.append(str(dest))
+            progress((files.index(f) + 1) / len(files), desc=f"已接收: {dest.name}")
+        logs: list[str] = []
         n = ingest_paths(saved, progress_cb=logs.append)
         return "\n".join(logs) + f"\n✅ 完成！共 {n} 个文本块入库，可以开始提问了。"
-    except Exception as e:  # noqa: BLE001 给用户看到失败原因
-        return "\n".join(logs) + f"\n❌ 建库失败: {e}"
+    except Exception as e:  # noqa: BLE001 把失败原因直接显示在状态框
+        import traceback
+        return "❌ 建库失败: " + repr(e) + "\n" + traceback.format_exc()[-600:]
 
 
 def on_sample():

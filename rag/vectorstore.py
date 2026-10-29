@@ -10,7 +10,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import settings
-from .loader import load_documents_from_dir
+from .loader import load_document, load_documents_from_dir
 
 
 def _stage_dir() -> Path:
@@ -95,7 +95,6 @@ def ingest_paths(paths: list[str], progress_cb: Callable[[str], None] | None = N
     """从文件路径列表构建向量库，返回入库块数（供 UI 调用）。"""
     docs: list[Document] = []
     for p in paths:
-        from pathlib import Path
         docs.extend(load_document(Path(p)))
         if progress_cb:
             progress_cb(f"已解析: {Path(p).name}")
