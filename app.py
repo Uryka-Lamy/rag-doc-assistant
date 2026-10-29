@@ -14,20 +14,29 @@ from rag.vectorstore import ingest_paths, ingest_sample, reset_vectorstore
 # ---- 界面美化：主题 + 自定义样式 ------------------------------------------
 
 CUSTOM_CSS = """
-.gradio-container {max-width: 1180px !important; margin: 0 auto !important;}
+/* 铺满整个窗口宽度 */
+.gradio-container {max-width: 100% !important; padding: 0 10px !important;}
+.gradio-container .main, .gradio-container .wrap, .gradio-container .contain {
+    max-width: 100% !important;
+}
 footer {display: none !important;}
 
-/* 面板卡片化 */
+/* 面板卡片化：卡片样式 + 防内部溢出 */
 #kb-panel, #chat-panel {
     border-radius: 16px !important;
     background: #ffffff !important;
     box-shadow: 0 4px 18px rgba(31, 41, 55, .07) !important;
+}
+#kb-panel > *, #chat-panel > * {min-width: 0 !important; max-width: 100% !important;}
+#kb-panel .form, #chat-panel .form, #kb-panel .block, #chat-panel .block {
+    min-width: 0 !important; max-width: 100% !important;
 }
 
 /* 区块小标题 */
 .panel-title {
     font-weight: 700; font-size: 15px; color: #0f172a;
     display: flex; align-items: center; gap: 6px; margin: 2px 0 6px;
+    flex: 0 0 auto;
 }
 
 /* 主按钮：渐变 + 悬浮微动效 */
@@ -44,8 +53,13 @@ footer {display: none !important;}
     border: 1px solid #c7d2fe !important; font-weight: 600;}
 #reset-btn {font-weight: 600;}
 
-/* 聊天区 */
-#chatbot {height: 520px !important; border-radius: 12px !important;}
+/* 聊天区：高度跟随视口自适应，窗口越大聊天区越高 */
+#chatbot {
+    height: calc(100vh - 330px) !important;
+    min-height: 430px !important;
+    max-height: 950px !important;
+    border-radius: 12px !important;
+}
 #chatbot .message.user .message-content,
 #chatbot .message.user {
     background: linear-gradient(135deg, #0ea5e9, #10b981) !important;
@@ -61,7 +75,7 @@ footer {display: none !important;}
 #status-box textarea {background: #f8fafc !important; font-size: 13px !important;}
 
 /* 上传组件 */
-#files-box {border-radius: 12px !important;}
+#files-box {border-radius: 12px !important; flex: 0 0 auto;}
 """
 
 
@@ -152,13 +166,16 @@ def on_reset():
     return "🗑️ 知识库已清空。"
 
 
+# 主题（Gradio 6 要求在 launch() 中传入）
+THEME = gr.themes.Soft(
+    primary_hue="emerald",
+    neutral_hue="slate",
+    font=[gr.themes.GoogleFont("Inter"), "PingFang SC", "Microsoft YaHei", "sans-serif"],
+)
+
+
 def build_ui() -> gr.Blocks:
-    theme = gr.themes.Soft(
-        primary_hue="emerald",
-        neutral_hue="slate",
-        font=[gr.themes.GoogleFont("Inter"), "PingFang SC", "Microsoft YaHei", "sans-serif"],
-    )
-    with gr.Blocks(title="智汇文档 · RAG 知识库问答助手", css=CUSTOM_CSS, theme=theme) as demo:
+    with gr.Blocks(title="智汇文档 · RAG 知识库问答助手") as demo:
         gr.HTML(
             '<div style="background:linear-gradient(135deg,#06b6d4 0%,#10b981 100%);'
             'border-radius:16px;padding:22px 28px;box-shadow:0 10px 30px rgba(16,185,129,.28);margin-bottom:8px;">'
@@ -179,7 +196,7 @@ def build_ui() -> gr.Blocks:
                     btn_upload = gr.Button("⬆️ 上传建库", variant="primary", elem_id="upload-btn")
                     btn_sample = gr.Button("🧪 加载示例", variant="secondary", elem_id="sample-btn")
                 btn_reset = gr.Button("🗑️ 清空知识库", variant="stop", elem_id="reset-btn")
-                status = gr.Textbox(label="状态", lines=7, interactive=False, elem_id="status-box")
+                status = gr.Textbox(label="状态", lines=11, interactive=False, elem_id="status-box")
             with gr.Column(scale=2, elem_id="chat-panel"):
                 gr.HTML('<div class="panel-title">💬 智能问答</div>')
                 chatbot = gr.Chatbot(label="", height=460, elem_id="chatbot")
@@ -199,4 +216,4 @@ def build_ui() -> gr.Blocks:
 
 if __name__ == "__main__":
     settings.validate()
-    build_ui().launch(inbrowser=True)
+    build_ui().launch(inbrowser=True, css=CUSTOM_CSS, theme=THEME)
